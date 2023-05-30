@@ -83,6 +83,7 @@ def main(input_folder,input_label_folder, output_folder, bounding_boxes_file, co
         pt = resampler.Execute(pt)
         resampler.SetInterpolator(sitk.sitkNearestNeighbor)
         gtvt = resampler.Execute(gtvt)
+        
         sitk.WriteImage(ct, str(
             (output_folder / (p + "__CT.nii.gz")).resolve()))
         sitk.WriteImage(pt, str(

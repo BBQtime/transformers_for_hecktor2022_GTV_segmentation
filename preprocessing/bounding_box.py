@@ -9,7 +9,7 @@ from scipy.ndimage.measurements import label
 import pandas as pd
 
 
-def bbox_auto(sitk_pt, pID, output_shape=(144, 144, 144), th=3):
+def bbox_auto(sitk_pt, pID, output_shape=(108, 108, 108), th=3):
     """Find a bounding box automatically based on the SUV
 
     Arguments:
@@ -17,7 +17,7 @@ def bbox_auto(sitk_pt, pID, output_shape=(144, 144, 144), th=3):
         px_spacing_pt {tuple of float} -- The spatial resolution of the PET volume 
         px_origin_pt {tuple of float} -- The spatial position of the first voxel in the PET volume 
 
-    Keyword Arguments:
+    Keyword Arguments:ca
         shape {tuple} -- The ouput size of the bounding box in millimeters
         th {float} -- [description] (default: {3})
 
