@@ -9,7 +9,7 @@ from scipy.ndimage.measurements import label
 import pandas as pd
 
 
-def bbox_auto(sitk_pt, pID, output_shape=(96, 96, 96), th=3):
+def bbox_auto(sitk_pt, pID, output_shape=(128, 128, 128), th=3):
     """Find a bounding box automatically based on the SUV
 
     Arguments:
