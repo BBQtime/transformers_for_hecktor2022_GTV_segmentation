@@ -22,30 +22,10 @@ import SimpleITK as sitk
 import shutil
 import glob
 import os
-"""
-# ! only required for BraTS dataset.
-def copy_BraTS_segmentation_and_convert_labels(in_file, out_file):
-    # use this for segmentation only!!!
-    img = sitk.ReadImage(in_file)
-    img_npy = sitk.GetArrayFromImage(img)
-
-    uniques = np.unique(img_npy)
-    for u in uniques:
-        if u not in [0, 1, 2]:
-            raise RuntimeError('unexpected label')
-
-    seg_new = np.zeros_like(img_npy)
-    seg_new[img_npy == 4] = 3
-    seg_new[img_npy == 2] = 1
-    seg_new[img_npy == 1] = 2
-    img_corr = sitk.GetImageFromArray(seg_new)
-    img_corr.CopyInformation(img)
-    sitk.WriteImage(img_corr, out_file)
-"""
 
 if __name__ == "__main__":
     """
-    REMEMBER TO CONVERT LABELS BACK TO BRATS CONVENTION AFTER PREDICTION!
+    Copy images and labels into nnunet folders
     """
 
     task_name = "Task005_CT"

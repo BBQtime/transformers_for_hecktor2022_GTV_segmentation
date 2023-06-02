@@ -225,13 +225,13 @@ class MissingWeightException(RuntimeError):
     pass
 
 
-def correct_patient_name(patient_name):
-    output = patient_name.replace("HN-CHUS-", "CHUS")
-    output = output.replace("HN-CHUM-", "CHUM")
-    output = output.replace("HN-HGJ-", "CHGJ")
-    output = output.replace("HN-HMR-", "CHMR")
-    output = output.replace("HN-CHUV-", "CHUV")
-    return output
+# def correct_patient_name(patient_name):
+#     output = patient_name.replace("HN-CHUS-", "CHUS")
+#     output = output.replace("HN-CHUM-", "CHUM")
+#     output = output.replace("HN-HGJ-", "CHGJ")
+#     output = output.replace("HN-HMR-", "CHMR")
+#     output = output.replace("HN-CHUV-", "CHUV")
+#     return output
 
 
 def get_masks(rtstruct_file,
