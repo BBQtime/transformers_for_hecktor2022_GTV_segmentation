@@ -44,15 +44,15 @@ def main(arguments):
     size = np.round((bb[3:] - bb[:3]) / resampling).astype(int)
     ct = sitk.ReadImage(
         str([f for f in input_folder.rglob(p + "__CT*")][0].resolve()))
-    pt = sitk.ReadImage(
-        str([f for f in input_folder.rglob(p + "__PT*")][0].resolve()))
+    # pt = sitk.ReadImage(
+    #     str([f for f in input_folder.rglob(p + "__PT*")][0].resolve()))
     gtvt = sitk.ReadImage(
         str([f for f in input_label_folder.rglob(p + "*")][0].resolve()))
     resampler.SetOutputOrigin(bb[:3])
     resampler.SetSize([int(k) for k in size])  # sitk is so stupid
     resampler.SetInterpolator(sitk.sitkBSpline)
     ct = resampler.Execute(ct)
-    pt = resampler.Execute(pt)
+    # pt = resampler.Execute(pt)
     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
     gtvt = resampler.Execute(gtvt)
 
@@ -61,8 +61,8 @@ def main(arguments):
 
     sitk.WriteImage(ct, str(
         (output_folder / (p + "__CT.nii.gz")).resolve()))
-    sitk.WriteImage(pt, str(
-        (output_folder / (p + "__PT.nii.gz")).resolve()))
+    # sitk.WriteImage(pt, str(
+    #     (output_folder / (p + "__PT.nii.gz")).resolve()))
     sitk.WriteImage(gtvt,
                     str((output_folder / (p + "__gtv.nii.gz")).resolve()))
     print(f'Patient {p} saved.')
@@ -74,22 +74,25 @@ if __name__ == '__main__':
     # output_folder = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/resampled/'
     # bounding_boxes_file = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/bbox/bb_box_training.csv'
 
-    input_folder = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/imagesTr/'
-    input_label_folder = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/labelsTr/'
-    output_folder = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/resampled/'
-    bounding_boxes_file = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/bbox/bb_box_training.csv'
+    input_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
+    input_label_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
+    output_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/resampled'
+    bounding_boxes_file = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/bbox.csv'
     
-    cores = 96
+    cores = 2
     bb_df = pd.read_csv(bounding_boxes_file)
 
     patient_list = sorted(list(bb_df['PatientID']))
+    print(patient_list)
     bb_df = bb_df.set_index('PatientID')
 
     list_of_args = zip(patient_list, [input_folder]*len(patient_list),
                        [input_label_folder]*len(patient_list), [output_folder]*len(patient_list),
                          [bb_df]*len(patient_list) )
     
-    with Pool(cores) as p:
-        p.map(main, list_of_args)
-        #p.starmap(main, list_of_args)
+    for args in list_of_args:
+        main(args)
+    # with Pool(cores) as p:
+    #     p.map(main, list_of_args)
+    #     #p.starmap(main, list_of_args)
     #main()
