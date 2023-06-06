@@ -1,5 +1,4 @@
-# This code refered to the official bouding box extraction code in HECKTOR 2021 (https://github.com/voreille/hecktor/blob/master/src/data/bounding_box.py) 
-
+# Refered to the official code from HECKTOR 2021 (https://github.com/voreille/hecktor/) 
 
 import numpy as np
 import SimpleITK as sitk
