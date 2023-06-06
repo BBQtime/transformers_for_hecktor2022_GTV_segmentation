@@ -13,19 +13,22 @@ from pydicom.sequence import Sequence
 
 import numpy as np
 import nibabel as nib
+import SimpleITK as sitk
 from rt_utils import RTStructBuilder
-def convert(nii_path, dicom_series_path, new_rtstruct_path):
+def convert(nii_path, dicom_series_path,rtstruct_path,  new_rtstruct_path):
     # Load nii.gz volume
-    nii_img = nib.load(nii_path)
-    nii_data = nii_img.get_fdata()
-
+    # nii_img = nib.load(nii_path)
+    # nii_data = nii_img.get_fdata()
+    itk_img = sitk.ReadImage(nii_path)
+    img_arr = np.transpose(sitk.GetArrayFromImage(itk_img), (1, 2, 0)) # if create_new use (2, 1, 0), else if create_from use (1, 2, 0). 
+    print(img_arr.shape)
     # Load existing RTStruct
-    #rtstruct = RTStructBuilder.create_from(dicom_series_path=dicom_series_path, rt_struct_path= rtstruct_path)
-    rtstruct = RTStructBuilder.create_new(dicom_series_path=dicom_series_path)
+    rtstruct = RTStructBuilder.create_from(dicom_series_path=dicom_series_path, rt_struct_path= rtstruct_path)
+    #rtstruct = RTStructBuilder.create_new(dicom_series_path=dicom_series_path)
     # Iterate through unique values in nii.gz file and create corresponding RTStruct ROIs
-    for roi_value in np.unique(nii_data)[1:]:  # Skip background
+    for roi_value in np.unique(img_arr)[1:]:  # Skip background
         # Get binary mask for this ROI
-        binary_mask = nii_data == roi_value
+        binary_mask = img_arr == roi_value
         print(np.sum(binary_mask))
         # Determine the ROI name based on the value
         if roi_value == 1:
@@ -46,14 +49,17 @@ if __name__ == '__main__':
     new_rtstruct_path = '/mnt/data/shared/hecktor2022/KM_Forskning_DL_DCM/KM_Forskning_01_AI_rtstruct.dcm'
     nii_path = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/revert_resample/KM_Forskning_01__DL_gtv.nii.gz'
     dicom_series_path= '/mnt/data/shared/hecktor2022/KM_Forskning_01/2021-01__Studies/fsdWvHtaAYEqcuDC_qiZd3pdfha5HHK4r0H15oQA44_CT_2021-01-28_170228_._._n136__00000/'
-    convert(nii_path, dicom_series_path, new_rtstruct_path)
+    rtstruct_path = '/mnt/data/shared/hecktor2022/KM_Forskning_01/2021-01__Studies/fsdWvHtaAYEqcuDC_qiZd3pdfha5HHK4r0H15oQA44_RTst_2021-01-28_170228_._Contouring_n1__00000/1.2.246.352.221.489410830223843050315684752710962117256.dcm'
+    convert(nii_path, dicom_series_path, rtstruct_path, new_rtstruct_path)
 
     new_rtstruct_path = '/mnt/data/shared/hecktor2022/KM_Forskning_DL_DCM/KM_Forskning_02_AI_rtstruct.dcm'
     nii_path = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/revert_resample/KM_Forskning_02__DL_gtv.nii.gz'
     dicom_series_path= '/mnt/data/shared/hecktor2022/KM_Forskning_02/2020-07__Studies/YXIeldCqxgYxvEhw_q1BE3YPSYPpjfB39yWaYcR06N_CT_2020-07-07_134341_._._n140__00000/'
-    convert(nii_path, dicom_series_path, new_rtstruct_path)
+    rtstruct_path = '/mnt/data/shared/hecktor2022/KM_Forskning_02/2020-07__Studies/YXIeldCqxgYxvEhw_q1BE3YPSYPpjfB39yWaYcR06N_RTst_2020-07-07_134341_._Contouring_n1__00000/1.2.246.352.221.495551740420992415113107999703811546264.dcm'
+    convert(nii_path, dicom_series_path, rtstruct_path , new_rtstruct_path)
 
     new_rtstruct_path = '/mnt/data/shared/hecktor2022/KM_Forskning_DL_DCM/KM_Forskning_03_AI_rtstruct.dcm'
     nii_path = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/revert_resample/KM_Forskning_03__DL_gtv.nii.gz'
-    dicom_series_path= '/mnt/data/shared/hecktor2022/KM_Forskning_03/2021-01__Studies/mdfOijiVMHfiScYa_81igm3vISlnzEN8hjg8Ydogr9_CT_2021-01-28_174114_._._n151__00000/'
-    convert(nii_path, dicom_series_path, new_rtstruct_path)
+    dicom_series_path = '/mnt/data/shared/hecktor2022/KM_Forskning_03/2021-01__Studies/mdfOijiVMHfiScYa_81igm3vISlnzEN8hjg8Ydogr9_CT_2021-01-28_174114_._._n151__00000/'
+    rtstruct_path = '/mnt/data/shared/hecktor2022/KM_Forskning_03/2021-01__Studies/mdfOijiVMHfiScYa_81igm3vISlnzEN8hjg8Ydogr9_RTst_2021-01-28_174114_._Contouring_n1__00000/1.2.246.352.221.493719477813083780116139582537726483858.dcm'
+    convert(nii_path, dicom_series_path, rtstruct_path, new_rtstruct_path)
