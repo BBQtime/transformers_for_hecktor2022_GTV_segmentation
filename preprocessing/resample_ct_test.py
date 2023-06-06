@@ -9,8 +9,13 @@ import numpy as np
 import SimpleITK as sitk
 import os 
 import sys
+import argparse
+import pandas as pd
+import numpy as np
+import SimpleITK as sitk
 
-def main(arguments):
+
+def main_resample(arguments):
     """ This command line interface allows to resample NIFTI files within a
         given bounding box contain in BOUNDING_BOXES_FILE. The images are
         resampled with spline interpolation
@@ -68,30 +73,88 @@ def main(arguments):
     print(f'Patient {p} saved.')
     sys.stdout.flush()
 
-if __name__ == '__main__':
-    # input_folder = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/imagesTr/'
-    # input_label_folder = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/labelsTr/'
-    # output_folder = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/resampled/'
-    # bounding_boxes_file = '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/bbox/bb_box_training.csv'
+def main_revert(arguments):
+    patient, segmentation_path, bounding_boxes_file, original_image_path, output_path = arguments
 
-    input_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
-    input_label_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
-    output_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/resampled'
-    bounding_boxes_file = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/bbox.csv'
-    
-    cores = 2
+    # Load the original image
+    original_image = sitk.ReadImage(str(original_image_path))
+
+    # Load bounding box information
     bb_df = pd.read_csv(bounding_boxes_file)
+    bb_df = bb_df.set_index('PatientID')
+    bb = np.array([
+        bb_df.loc[patient, 'x1'] - 24, bb_df.loc[patient, 'y1'] - 12, bb_df.loc[patient, 'z1'] - 48,
+        bb_df.loc[patient, 'x2'] + 24, bb_df.loc[patient, 'y2'] + 36, bb_df.loc[patient, 'z2']
+    ])
 
-    patient_list = sorted(list(bb_df['PatientID']))
-    print(patient_list)
+    # Load the predicted mask image
+    predicted_mask = sitk.ReadImage(str(segmentation_path))
+
+    # Resample the predicted mask image to the original spacing
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetOutputDirection([1, 0, 0, 0, 1, 0, 0, 0, 1])
+    resampler.SetOutputSpacing(original_image.GetSpacing())
+    resampler.SetSize(original_image.GetSize())
+    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+    resampled_predicted_mask = resampler.Execute(predicted_mask)
+
+    # Create a blank image with the same size and spacing as the original image
+    blank_image = sitk.Image(original_image.GetSize(), sitk.sitkUInt8)
+    blank_image.SetSpacing(original_image.GetSpacing())
+    blank_image.SetOrigin(original_image.GetOrigin())
+
+    # Replace the pixels inside the bounding box in the blank image with the resampled segmentation
+    start_index = [int((bb[i] - original_image.GetOrigin()[i]) / original_image.GetSpacing()[i]) for i in range(3)]
+    end_index = [int((bb[i + 3] - original_image.GetOrigin()[i]) / original_image.GetSpacing()[i]) for i in range(3)]
+    for z in range(start_index[2], end_index[2]):
+        for y in range(start_index[1], end_index[1]):
+            for x in range(start_index[0], end_index[0]):
+                blank_image[x, y, z] = resampled_predicted_mask[x - start_index[0], y - start_index[1], z - start_index[2]]
+
+    # Write the reverted segmentation to disk
+    sitk.WriteImage(blank_image, str(output_path))
+    
+def resample_images(input_folder, input_label_folder, output_folder, bounding_boxes_file):
+    # Load bounding box information
+    bb_df = pd.read_csv(bounding_boxes_file)
     bb_df = bb_df.set_index('PatientID')
 
-    list_of_args = zip(patient_list, [input_folder]*len(patient_list),
-                       [input_label_folder]*len(patient_list), [output_folder]*len(patient_list),
-                         [bb_df]*len(patient_list) )
+    for p in bb_df.index:
+        # Resample images
+        main_resample((p, input_folder, input_label_folder, output_folder, bb_df))
+
+def revert_segmentation(patient, segmentation_path, bounding_boxes_file, original_image_path, output_path):
+    # Revert the segmentation
+    main_revert((patient, segmentation_path, bounding_boxes_file, original_image_path, output_path))
+
+
     
-    for args in list_of_args:
-        main(args)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Resample and revert segmentations.')
+    parser.add_argument('--mode', type=str, choices=['resample', 'revert'], help='Mode to run: "resample" or "revert".')
+    parser.add_argument('--input_folder', type=str, help='Input folder containing images.')
+    parser.add_argument('--input_label_folder', type=str, help='Input folder containing labels.')
+    parser.add_argument('--output_folder', type=str, help='Output folder to save resampled images/labels.')
+    parser.add_argument('--bounding_boxes_file', type=str, help='CSV file containing bounding boxes.')
+    parser.add_argument('--segmentation_path', type=str, help='Path to the predicted segmentation.')
+    parser.add_argument('--original_image_path', type=str, help='Path to the original image.')
+    parser.add_argument('--output_path', type=str, help='Path to save the reverted segmentation.')
+
+    args = parser.parse_args()
+
+    args.input_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
+    args.input_label_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
+    args.output_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/resampled'
+    args.bounding_boxes_file = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/bbox.csv'
+
+
+    if args.mode == 'resample':
+        resample_images(args.input_folder, args.input_label_folder, args.output_folder, args.bounding_boxes_file)
+    elif args.mode == 'revert':
+        revert_segmentation(args.patient, args.segmentation_path, args.bounding_boxes_file, args.original_image_path, args.output_path)
+    
+    # for args in list_of_args:
+    #     main(args)
     # with Pool(cores) as p:
     #     p.map(main, list_of_args)
     #     #p.starmap(main, list_of_args)
