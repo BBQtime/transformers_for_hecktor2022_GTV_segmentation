@@ -73,72 +73,171 @@ def main_resample(arguments):
     print(f'Patient {p} saved.')
     sys.stdout.flush()
 
+# def main_revert(arguments):
+#     bb, segmentation_path, original_image_path, output_path = arguments
+
+#     # Load the original image
+#     original_image = sitk.ReadImage(str(original_image_path))
+
+#     # Load the predicted mask image
+#     predicted_mask = sitk.ReadImage(str(segmentation_path))
+
+#     # Create an intermediate image that is blank everywhere except within the bounding box
+#     intermediate_image = sitk.Image(original_image.GetSize(), sitk.sitkUInt8)
+#     intermediate_image.SetSpacing(original_image.GetSpacing())
+#     intermediate_image.SetOrigin(original_image.GetOrigin())
+#     #intermediate_image_array = sitk.GetArrayFromImage(intermediate_image)
+#     #print(np.max(intermediate_image_array), intermediate_image_array.shape)
+    
+#     print(original_image.GetSpacing(), predicted_mask.GetSpacing() )
+
+#     # Make size for the intermediate image to full size
+#     full_size = [int(original_image.GetSize()[i] * original_image.GetSpacing()[i]) for i in range(3)] # to make image to 1x1x1
+#     print(full_size, original_image.GetSize())
+
+#     # Resample the intermediate image to match the spaceing of the predicted_mask
+#     resampler = sitk.ResampleImageFilter()
+#     resampler.SetOutputDirection(predicted_mask.GetDirection())
+#     resampler.SetOutputSpacing(predicted_mask.GetSpacing())
+#     resampler.SetSize(full_size)
+#     resampler.SetOutputOrigin(original_image.GetOrigin())
+#     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+#     resampled_intermediate_image = resampler.Execute(intermediate_image)
+
+#     # Calculate the bounding box size and the offset 
+#     size = [int((bb[i + 3] - bb[i])) for i in range(3)] 
+#     offset = [int(bb[i] - original_image.GetOrigin()[i]) for i in range(3)]
+
+#     predicted_mask_array = sitk.GetArrayFromImage(predicted_mask)
+#     print(np.max(predicted_mask_array), predicted_mask_array.shape, size)
+
+#     # Paste the resampled predicted mask into the intermediate image
+#     intermediate_image = sitk.Paste(resampled_intermediate_image, predicted_mask, size, [0,0,0], offset ) #[0,0,0], offset)
+
+#     # Resample the intermediate image to the original image spacing and size
+#     resampler.SetOutputSpacing(original_image.GetSpacing())
+#     resampler.SetOutputDirection(original_image.GetDirection())
+#     resampler.SetSize(original_image.GetSize())
+#     resampler.SetOutputOrigin(original_image.GetOrigin())
+#     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+#     resampled_mask = resampler.Execute(intermediate_image)
+
+#     resampled_mask_array = sitk.GetArrayFromImage(resampled_mask)
+#     print(np.max(resampled_mask_array), resampled_mask_array.shape)
+#     # Write the reverted segmentation to disk
+#     sitk.WriteImage(resampled_mask, str(output_path))
+
 def main_revert(arguments):
-    patient, segmentation_path, bounding_boxes_file, original_image_path, output_path = arguments
+    """
+    Reverts a predicted mask to match the original image size and spacing.
+    
+    Arguments:
+    - arguments: A list of arguments containing the bounding box coordinates, segmentation path,
+                 original image path, and output path.
+
+    Returns:
+    None
+    """
+    bb, segmentation_path, original_image_path, output_path = arguments
 
     # Load the original image
     original_image = sitk.ReadImage(str(original_image_path))
 
-    # Load bounding box information
-    bb_df = pd.read_csv(bounding_boxes_file)
-    bb_df = bb_df.set_index('PatientID')
-    bb = np.array([
-        bb_df.loc[patient, 'x1'] - 24, bb_df.loc[patient, 'y1'] - 12, bb_df.loc[patient, 'z1'] - 48,
-        bb_df.loc[patient, 'x2'] + 24, bb_df.loc[patient, 'y2'] + 36, bb_df.loc[patient, 'z2']
-    ])
-
     # Load the predicted mask image
     predicted_mask = sitk.ReadImage(str(segmentation_path))
 
-    # Resample the predicted mask image to the original spacing
+    # Create an intermediate image that is blank everywhere except within the bounding box
+    intermediate_image = sitk.Image(original_image.GetSize(), sitk.sitkUInt8)
+    intermediate_image.SetSpacing(original_image.GetSpacing())
+    intermediate_image.SetOrigin(original_image.GetOrigin())
+
+    print(original_image.GetSpacing(), predicted_mask.GetSpacing() )
+
+    patch_size = [int((bb[i + 3] - bb[i])/original_image.GetSpacing()[i]) for i in range(3)] 
+    # Resample the intermediate image to match the spaceing of the predicted_mask
     resampler = sitk.ResampleImageFilter()
-    resampler.SetOutputDirection([1, 0, 0, 0, 1, 0, 0, 0, 1])
+    resampler.SetOutputDirection(original_image.GetDirection())
     resampler.SetOutputSpacing(original_image.GetSpacing())
-    resampler.SetSize(original_image.GetSize())
+    resampler.SetSize(patch_size)
+    resampler.SetOutputOrigin(predicted_mask.GetOrigin())
     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
-    resampled_predicted_mask = resampler.Execute(predicted_mask)
+    resampled_intermediate_image = resampler.Execute(predicted_mask)
 
-    # Create a blank image with the same size and spacing as the original image
-    blank_image = sitk.Image(original_image.GetSize(), sitk.sitkUInt8)
-    blank_image.SetSpacing(original_image.GetSpacing())
-    blank_image.SetOrigin(original_image.GetOrigin())
+    # Calculate the bounding box size and the offset 
+    size = [int((bb[i + 3] - bb[i])) for i in range(3)] 
+    offset = [int(bb[i] - original_image.GetOrigin()[i]) for i in range(3)]
 
-    # Replace the pixels inside the bounding box in the blank image with the resampled segmentation
-    start_index = [int((bb[i] - original_image.GetOrigin()[i]) / original_image.GetSpacing()[i]) for i in range(3)]
-    end_index = [int((bb[i + 3] - original_image.GetOrigin()[i]) / original_image.GetSpacing()[i]) for i in range(3)]
-    for z in range(start_index[2], end_index[2]):
-        for y in range(start_index[1], end_index[1]):
-            for x in range(start_index[0], end_index[0]):
-                blank_image[x, y, z] = resampled_predicted_mask[x - start_index[0], y - start_index[1], z - start_index[2]]
+    predicted_mask_array = sitk.GetArrayFromImage(predicted_mask)
+    print(np.max(predicted_mask_array), predicted_mask_array.shape, size)
 
+    # Paste the resampled predicted mask into the intermediate image
+    intermediate_image = sitk.Paste(resampled_intermediate_image, predicted_mask, size, [0,0,0], offset ) #[0,0,0], offset)
+
+    # Resample the intermediate image to the original image spacing and size
+    resampler.SetOutputSpacing(original_image.GetSpacing())
+    resampler.SetOutputDirection(original_image.GetDirection())
+    resampler.SetSize(original_image.GetSize())
+    resampler.SetOutputOrigin(original_image.GetOrigin())
+    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
+    resampled_mask = resampler.Execute(intermediate_image)
+
+    resampled_mask_array = sitk.GetArrayFromImage(resampled_mask)
+    print(np.max(resampled_mask_array), resampled_mask_array.shape)
     # Write the reverted segmentation to disk
-    sitk.WriteImage(blank_image, str(output_path))
-    
+    sitk.WriteImage(resampled_mask, str(output_path))
+
+
 def resample_images(input_folder, input_label_folder, output_folder, bounding_boxes_file):
     # Load bounding box information
     bb_df = pd.read_csv(bounding_boxes_file)
     bb_df = bb_df.set_index('PatientID')
-
+    
     for p in bb_df.index:
         # Resample images
         main_resample((p, input_folder, input_label_folder, output_folder, bb_df))
 
-def revert_segmentation(patient, segmentation_path, bounding_boxes_file, original_image_path, output_path):
-    # Revert the segmentation
-    main_revert((patient, segmentation_path, bounding_boxes_file, original_image_path, output_path))
+def revert_segmentation(segmentation_path, bounding_boxes_file, original_image_path, output_path):
+    # Load bounding box information
+    bb_df = pd.read_csv(bounding_boxes_file)
+    bb_df = bb_df.set_index('PatientID')
+
+    for patient in bb_df.index:
+        bb = np.array([
+            bb_df.loc[patient, 'x1'] - 24, bb_df.loc[patient, 'y1'] - 12, bb_df.loc[patient, 'z1'] - 48,
+            bb_df.loc[patient, 'x2'] + 24, bb_df.loc[patient, 'y2'] + 36, bb_df.loc[patient, 'z2']
+        ])
+
+        segmentation_file = os.path.join(segmentation_path, patient+'.nii.gz')
+        print(original_image_path)
+        image_path = os.path.join(original_image_path, patient+'__CT.nii.gz')
+        print(image_path)
+        output_file = os.path.join(output_path, patient+'__DL_gtv.nii.gz')
+        # Revert the segmentation
+        main_revert((bb, segmentation_file, image_path, output_file))
 
 
     
 if __name__ == "__main__":
+    """
+    This script uses argparse to parse command line arguments. The --mode argument specifies which operation to perform:
+      'resample' or 'revert'. Depending on the mode, it will either call resample_images or revert_segmentation.
+
+    In 'resample' mode, it will call resample_images, which in turn calls main_resample for each patient in the bounding 
+    boxes file.
+
+    In 'revert' mode, it will call revert_segmentation, which in turn calls main_revert to revert the segmentation for a 
+    single patient.
+    """
+
     parser = argparse.ArgumentParser(description='Resample and revert segmentations.')
     parser.add_argument('--mode', type=str, choices=['resample', 'revert'], help='Mode to run: "resample" or "revert".')
     parser.add_argument('--input_folder', type=str, help='Input folder containing images.')
     parser.add_argument('--input_label_folder', type=str, help='Input folder containing labels.')
-    parser.add_argument('--output_folder', type=str, help='Output folder to save resampled images/labels.')
+    parser.add_argument('--output_folder_resample', type=str, help='Output folder to save resampled images/labels.')
     parser.add_argument('--bounding_boxes_file', type=str, help='CSV file containing bounding boxes.')
     parser.add_argument('--segmentation_path', type=str, help='Path to the predicted segmentation.')
     parser.add_argument('--original_image_path', type=str, help='Path to the original image.')
-    parser.add_argument('--output_path', type=str, help='Path to save the reverted segmentation.')
+    parser.add_argument('--output_folder_revert', type=str, help='Path to save the reverted segmentation.')
 
     args = parser.parse_args()
 
@@ -146,16 +245,13 @@ if __name__ == "__main__":
     args.input_label_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
     args.output_folder = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/resampled'
     args.bounding_boxes_file = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/bbox.csv'
+    args.output_folder_revert = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/revert_resample'
+    args.segmentation_path = '/mnt/data/shared/hecktor2022/KM_Forskning_nii/unetr_pp'
+    args.original_image_path = '/mnt/data/shared/hecktor2022/KM_Forskning_nii'
 
 
     if args.mode == 'resample':
-        resample_images(args.input_folder, args.input_label_folder, args.output_folder, args.bounding_boxes_file)
+        resample_images(args.input_folder, args.input_label_folder, args.output_folder_resample, args.bounding_boxes_file)
     elif args.mode == 'revert':
-        revert_segmentation(args.patient, args.segmentation_path, args.bounding_boxes_file, args.original_image_path, args.output_path)
+        revert_segmentation(args.segmentation_path, args.bounding_boxes_file, args.original_image_path, args.output_folder_revert)
     
-    # for args in list_of_args:
-    #     main(args)
-    # with Pool(cores) as p:
-    #     p.map(main, list_of_args)
-    #     #p.starmap(main, list_of_args)
-    #main()

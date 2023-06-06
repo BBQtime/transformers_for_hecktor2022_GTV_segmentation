@@ -101,18 +101,6 @@ def bbox_auto(sitk_pt, pID, output_shape=(128, 128, 128), th=3):
 
     bb = np.asarray((x_abs, y_abs, z_abs)).flatten()
     
-    
-    # save image_withoutbrain    
-    # np_pt_brain =   binary_dilation(np_pt_brain,  iterations= 5 )
-    # np_pt_withoutbrain  =  np_pt * (1 - np_pt_brain)                                
-    # np_pt_withoutbrain = sitk.GetImageFromArray(np.transpose(np_pt_withoutbrain, (2 , 1, 0)))  
-    # np_pt_withoutbrain.CopyInformation(sitk_pt)
-    
-    # training set
-    # sitk.WriteImage(np_pt_withoutbrain, '/mnt/data/shared/hecktor2022/train/hecktor2022_training/hecktor2022/imagesTr/' + str(pID) + "__PT_nobrain.nii.gz")
-    # tetsing set
-    #sitk.WriteImage(np_pt_withoutbrain, './Data/hecktor2022_testing/imagesTs_PT_nobrain/' + str(pID) + "__PT_nobrain.nii.gz")
-    
     return bb
 
 
