@@ -8,7 +8,7 @@ This repository contains transformer models for the HECKTOR 2022 competition, fo
 
 The following transformer segmentation networks are experimented with on the HECKTOR2022 competition dataset:
 
-- [ ] UNETR++
+- [x] UNETR++
 - [ ] UNETR
 - [ ] SWIN Transformer UNet
 - [ ] nnFormer
